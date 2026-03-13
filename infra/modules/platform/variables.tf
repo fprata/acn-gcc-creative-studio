@@ -87,3 +87,15 @@ variable "backend_runtime_secrets" {
   description = "Secrets to mount in the backend container at runtime."
   default     = {}
 }
+variable "iap_client_id" {
+  type = string
+}
+
+variable "iap_client_secret" {
+  type = string
+}
+
+variable "domain" {
+  type    = string
+  default = ""
+}

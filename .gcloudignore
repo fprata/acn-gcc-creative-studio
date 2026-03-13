@@ -1,3 +1,1 @@
-__pycache__
-notebooks
-experiments
+.git\n.gitignore\nbackend/.venv\nfrontend/node_modules\nfrontend/dist\n.terraform\n.terraform.lock.hcl\n*.tfstate\n*.tfstate.backup\n

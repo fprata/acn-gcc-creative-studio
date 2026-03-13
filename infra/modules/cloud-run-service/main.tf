@@ -36,13 +36,26 @@ resource "google_cloud_run_v2_service" "this" {
   location         = var.gcp_region
   custom_audiences = var.custom_audiences
   deletion_protection = false
+  ingress          = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   template {
     service_account = google_service_account.run_sa.email
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [var.cloud_sql_connection_name]
+    
+    vpc_access {
+      network_interfaces {
+        network    = var.vpc_network_id
+        subnetwork = var.vpc_subnetwork_name
+      }
+      egress = "ALL_TRAFFIC"
+    }
+
+    dynamic "volumes" {
+      for_each = var.enable_cloudsql ? [1] : []
+      content {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [var.cloud_sql_connection_name]
+        }
       }
     }
     containers {
@@ -54,29 +67,44 @@ resource "google_cloud_run_v2_service" "this" {
         }
       }
 
-      env {
-        name = "INSTANCE_CONNECTION_NAME"
-        value = var.cloud_sql_connection_name
+      dynamic "env" {
+        for_each = var.enable_cloudsql ? [1] : []
+        content {
+          name = "INSTANCE_CONNECTION_NAME"
+          value = var.cloud_sql_connection_name
+        }
       }
-      env {
-        name = "DB_HOST"
-        value = "/cloudsql/${var.cloud_sql_connection_name}"
+      dynamic "env" {
+        for_each = var.enable_cloudsql ? [1] : []
+        content {
+          name = "DB_HOST"
+          value = "/cloudsql/${var.cloud_sql_connection_name}"
+        }
       }
-      env {
-        name = "DB_NAME"
-        value = var.db_name
+      dynamic "env" {
+        for_each = var.enable_cloudsql ? [1] : []
+        content {
+          name = "DB_NAME"
+          value = var.db_name
+        }
       }
-      env {
-        name = "DB_USER"
-        value = var.db_user
+      dynamic "env" {
+        for_each = var.enable_cloudsql ? [1] : []
+        content {
+          name = "DB_USER"
+          value = var.db_user
+        }
       }
 
-      env {
-        name = "DB_PASS"
-        value_source {
-          secret_key_ref {
-            secret = var.db_secret_id
-            version = "latest"
+      dynamic "env" {
+        for_each = var.enable_cloudsql ? [1] : []
+        content {
+          name = "DB_PASS"
+          value_source {
+            secret_key_ref {
+              secret = var.db_secret_id
+              version = "latest"
+            }
           }
         }
       }
@@ -109,9 +137,12 @@ resource "google_cloud_run_v2_service" "this" {
         }
       }
 
-      volume_mounts {
-        name = "cloudsql"
-        mount_path = "/cloudsql"
+      dynamic "volume_mounts" {
+        for_each = var.enable_cloudsql ? [1] : []
+        content {
+          name = "cloudsql"
+          mount_path = "/cloudsql"
+        }
       }
     }
     scaling {
@@ -196,13 +227,16 @@ resource "google_project_iam_member" "sa_token_creator_binding" {
 }
 
 resource "google_secret_manager_secret_iam_member" "db_password_access" {
+  count     = var.enable_cloudsql ? 1 : 0
   secret_id = var.db_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${google_service_account.run_sa.email}"
+  depends_on = [var.secret_depends_on]
 }
 
 # This is required for the Cloud Run instance to talk to the Cloud SQL Auth Proxy
 resource "google_project_iam_member" "cloudsql_client" {
+  count   = var.enable_cloudsql ? 1 : 0
   project = var.gcp_project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.run_sa.email}"

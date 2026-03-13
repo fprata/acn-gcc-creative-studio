@@ -21,7 +21,17 @@ output "backend_service_url" {
 
 output "frontend_service_url" {
   description = "The URL of the deployed frontend service."
-  value       = module.frontend_service.url
+  value       = module.frontend_service.service_url
+}
+
+output "load_balancer_ip" {
+  description = "The IP address of the Load Balancer."
+  value       = module.load_balancer.load_balancer_ip
+}
+
+output "app_url" {
+  description = "The main application URL."
+  value       = "https://${module.load_balancer.actual_domain}"
 }
 
 output "cloud_sql_connection_name" {

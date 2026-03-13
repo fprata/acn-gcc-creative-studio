@@ -129,3 +129,13 @@ variable "db_secret_id" {
 }
 variable "db_name" { type = string }
 variable "db_user" { type = string }
+variable "vpc_network_id" { type = string }
+variable "vpc_subnetwork_name" { type = string }
+variable "enable_cloudsql" {
+  type    = bool
+  default = false
+}
+variable "secret_depends_on" {
+  type    = any
+  default = null
+}
