@@ -26,3 +26,4 @@ steps:
 
 images:
   - '${_REPO_NAME}/${_SERVICE_NAME}:${SHORT_SHA}'
+\noptions:\n  logging: CLOUD_LOGGING_ONLY
