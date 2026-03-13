@@ -69,11 +69,11 @@ def configure_cors(app):
                 "FRONTEND_URL environment variable not set in production"
             )
         allowed_origins.append(frontend_url)
-    elif environment in ["development", "test", "local"]:
+    elif environment in ["development", "test", "local", "secure-dev"]:
         allowed_origins.append("*")  # Allow all origins in development
     else:
         raise ValueError(
-            f"Invalid ENVIRONMENT: {environment}. Must be 'production', 'development' or 'local'"
+            f"Invalid ENVIRONMENT: {environment}. Must be 'production', 'development', 'local', or 'secure-dev'"
         )
 
     app.add_middleware(
@@ -108,8 +108,7 @@ async def lifespan(app: FastAPI):
     #     await run_pending_migrations()
     # except Exception as e:
     #     logger.error(f"Failed to run database migrations: {e}")
-        # We might want to stop startup here if migrations fail
-        raise e
+    #     raise e
 
     logger.info("Creating ThreadPoolExecutor...")
     # Create the pool and attach it to the app's state
