@@ -20,7 +20,7 @@ curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/clou
 chmod +x cloud-sql-proxy
 
 echo "   Starting proxy in background..."
-./cloud-sql-proxy --private-ip $CONNECTION_NAME &
+./cloud-sql-proxy $CONNECTION_NAME &
 PROXY_PID=$!
 
 # Ensure proxy is stopped when script exits
