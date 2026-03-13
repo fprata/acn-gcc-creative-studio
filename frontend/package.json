@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --configuration development",
-    "build": "ng build --configuration build-dev",
+    "build": "ng build",
     "build-dev": "ng build --configuration build-dev",
     "build-qat": "ng build --configuration build-qat",
     "build-prd": "ng build --configuration build-prd --aot --output-hashing=all",
