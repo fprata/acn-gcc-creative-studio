@@ -1,58 +1,43 @@
-steps:
-  # 1. Download the Cloud SQL Auth Proxy
-  - name: 'gcr.io/cloud-builders/wget'
-    args:
-      - 'https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.11.0/cloud-sql-proxy.linux.amd64'
-      - '-O'
-      - '/workspace/cloud-sql-proxy'
-  
-  # 2. Make it executable
-  - name: 'ubuntu'
-    args: ['chmod', '+x', '/workspace/cloud-sql-proxy']
+# Copyright 2025 Google LLC
+# Licensed under the Apache License, Version 2.0
+#
+# Runs database migrations via a Cloud Run Job (which has VPC access to
+# the private Cloud SQL instance). No proxy or public IP needed.
 
-  # 3. Run the Proxy and the Python Script
-  - name: 'python:3.12-slim'
+steps:
+  # 1. Get the latest backend image from the Cloud Run service
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Update Job Image'
     entrypoint: 'bash'
-    secretEnv: ['_DB_PASS']
-    env:
-      - 'USE_CLOUD_SQL_AUTH_PROXY=true'
-      - 'DB_HOST=127.0.0.1'
-      - 'DB_PORT=5432'
-      - 'DB_NAME=creative_studio'
-      - 'DB_USER=studio_user'
-      - 'PYTHONPATH=/workspace/backend'
     args:
       - '-c'
       - |
-        export DB_PASS=$$_DB_PASS
-        # Start the proxy in the background
-        /workspace/cloud-sql-proxy --private-ip ${_CONNECTION_NAME} &
-        PROXY_PID=$$!
-        
-        # Wait for the proxy to be ready
-        sleep 5
-        
-        # Install Python dependencies
-        cd backend
-        pip install uv
-        uv pip install -r requirements.txt --system
-        
-        # Run the bootstrap script
-        python -m bootstrap.bootstrap ${_PROJECT_ID} ${_REGION} ${_BUCKET_NAME} ${_CONNECTION_NAME}
-        
-        # Kill the proxy
-        kill -9 $$PROXY_PID
+        BACKEND_IMAGE=$(gcloud run services describe ${_BACKEND_SERVICE} \
+          --region=${_REGION} \
+          --project=$PROJECT_ID \
+          --format='value(spec.template.spec.containers[0].image)') && \
+        gcloud run jobs update ${_JOB_NAME} \
+          --image="$$BACKEND_IMAGE" \
+          --region=${_REGION} \
+          --project=$PROJECT_ID \
+          --quiet
+
+  # 2. Execute the migration job and wait for completion
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Run Migrations'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'jobs'
+      - 'execute'
+      - '${_JOB_NAME}'
+      - '--region=${_REGION}'
+      - '--wait'
 
 options:
   logging: CLOUD_LOGGING_ONLY
 
 substitutions:
-  _PROJECT_ID: 'acn-cloud-solution-factory'
   _REGION: 'europe-west1'
-  _BUCKET_NAME: 'acn-cloud-solution-factory-cs-secure-dev-bucket'
-  _CONNECTION_NAME: 'acn-cloud-solution-factory:europe-west1:creative-studio-db-28a3193a'
-
-availableSecrets:
-  secretManager:
-  - versionName: projects/${PROJECT_ID}/secrets/creative-studio-db-password/versions/latest
-    env: '_DB_PASS'
+  _JOB_NAME: 'cstudio-db-migrate'
+  _BACKEND_SERVICE: 'cstudio-backend-secdev'

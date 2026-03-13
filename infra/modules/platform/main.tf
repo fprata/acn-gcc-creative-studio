@@ -199,6 +199,104 @@ module "load_balancer" {
   global_ip_address = google_compute_global_address.default.address
 }
 
+# --- Database Migration Cloud Run Job ---
+# Runs inside the VPC with access to the private Cloud SQL instance.
+# Trigger with: gcloud run jobs execute cstudio-db-migrate --region=europe-west1
+resource "google_cloud_run_v2_job" "db_migrate" {
+  name     = "cstudio-db-migrate"
+  location = var.gcp_region
+  deletion_protection = false
+
+  template {
+    template {
+      service_account = module.backend_service.run_sa_email
+
+      vpc_access {
+        network_interfaces {
+          network    = module.network.network_id
+          subnetwork = module.network.serverless_subnetwork_name
+        }
+        egress = "ALL_TRAFFIC"
+      }
+
+      volumes {
+        name = "cloudsql"
+        cloud_sql_instance {
+          instances = [module.postgresql.connection_name]
+        }
+      }
+
+      containers {
+        image = "us-docker.pkg.dev/cloudrun/container/hello:latest"
+
+        command = ["python", "-m", "bootstrap.bootstrap"]
+        args    = [var.gcp_project_id, var.gcp_region, google_storage_bucket.genmedia.name, module.postgresql.connection_name]
+
+        env {
+          name  = "INSTANCE_CONNECTION_NAME"
+          value = module.postgresql.connection_name
+        }
+        env {
+          name  = "DB_HOST"
+          value = "/cloudsql/${module.postgresql.connection_name}"
+        }
+        env {
+          name  = "DB_NAME"
+          value = module.postgresql.db_name
+        }
+        env {
+          name  = "DB_USER"
+          value = module.postgresql.db_user
+        }
+        env {
+          name = "DB_PASS"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.db_password.secret_id
+              version = "latest"
+            }
+          }
+        }
+        env {
+          name  = "USE_CLOUD_SQL_AUTH_PROXY"
+          value = "false"
+        }
+        env {
+          name  = "PYTHONPATH"
+          value = "/app"
+        }
+        env {
+          name  = "PROJECT_ID"
+          value = var.gcp_project_id
+        }
+        env {
+          name  = "GENMEDIA_BUCKET"
+          value = google_storage_bucket.genmedia.name
+        }
+
+        volume_mounts {
+          name       = "cloudsql"
+          mount_path = "/cloudsql"
+        }
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "2Gi"
+          }
+        }
+      }
+
+      timeout = "600s"
+      max_retries = 0
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [template[0].template[0].containers[0].image]
+  }
+}
+
 module "frontend_secrets" {
   source = "../secret-manager"
 

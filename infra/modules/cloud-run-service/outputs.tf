@@ -31,3 +31,18 @@ output "location" {
   description = "The location of the Cloud Run service."
   value       = google_cloud_run_v2_service.this.location
 }
+
+output "run_sa_email" {
+  description = "The email of the runtime service account."
+  value       = google_service_account.run_sa.email
+}
+
+output "artifact_repo_id" {
+  description = "The full ID of the Artifact Registry repository."
+  value       = google_artifact_registry_repository.repo.id
+}
+
+output "artifact_repo_name" {
+  description = "The name of the Artifact Registry repository."
+  value       = google_artifact_registry_repository.repo.name
+}
