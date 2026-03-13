@@ -43,18 +43,24 @@ Creative Studio goes beyond simple demos, implementing advanced, real-world feat
 ![](./screenshots/cstudio-homepage.png)
 ![](./screenshots/cstudio-brand-guidelines.png)
 
-## Deploy in 20min!!
-Just run this script which has a step by step approach for you to deploy the infrastructure and start the app, just follow the instructions
-```
-curl https://raw.githubusercontent.com/GoogleCloudPlatform/gcc-creative-studio/refs/heads/main/bootstrap.sh | bash
-```
+## Finalizing the Deployment (Database Migration)
+After deploying the infrastructure using Terraform, you must initialize the database schema and seed the default assets. Since the database is private (no public IP allowed), you must run this step from the **Google Cloud Shell** within your project, which uses the Cloud SQL Auth Proxy.
 
-For better guidance, [we recorded a video](./screenshots/how_to_deploy_creative_studio.mp4) to showcase how to deploy Creative Studio in a completely new and fresh GCP Account.
+Run the following commands in your Cloud Shell:
 
-<video controls autoplay loop width="100%" style="max-width: 1200px;">
-  <source src="./screenshots/how_to_deploy_creative_studio.mp4" type="video/mp4">
-  Your browser does not support the video tag. You can <a href="./screenshots/how_to_deploy_creative_studio.mp4">download the video here</a>.
-</video>
+```bash
+# Clone your forked repository
+git clone https://github.com/YOUR_GITHUB_USERNAME/acn-gcc-creative-studio.git
+cd acn-gcc-creative-studio
+
+# Execute the database bootstrap script
+./cloud_shell_bootstrap.sh
+```
+This script will automatically:
+1. Download and run the Cloud SQL Auth Proxy in the background.
+2. Fetch the database password securely from Secret Manager.
+3. Setup a Python virtual environment and install dependencies.
+4. Run the database migrations (Alembic) and seed data.
 
 
 ## System Architecture
