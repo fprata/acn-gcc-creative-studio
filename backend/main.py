@@ -17,6 +17,7 @@ from src.config.logger_config import setup_logging
 
 setup_logging()
 
+import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -102,13 +103,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize Firebase: {e}")
 
-    # Run Database Migrations (Disabled for Cloud Run startup to prevent timeouts)
-    # try:
-    #     from src.database_migrations import run_pending_migrations
-    #     await run_pending_migrations()
-    # except Exception as e:
-    #     logger.error(f"Failed to run database migrations: {e}")
-    #     raise e
+    # Run Database Migrations on startup with a timeout guard
+    try:
+        from src.database_migrations import run_pending_migrations
+        await asyncio.wait_for(run_pending_migrations(), timeout=120)
+    except asyncio.TimeoutError:
+        logger.warning("Database migrations timed out after 120s — skipping. Run manually if needed.")
+    except Exception as e:
+        logger.error(f"Failed to run database migrations: {e} — continuing startup.")
 
     logger.info("Creating ThreadPoolExecutor...")
     # Create the pool and attach it to the app's state
